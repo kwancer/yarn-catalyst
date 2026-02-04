@@ -161,7 +161,11 @@ onMounted(async () => {
   setupSubscriptions()
 })
 
-const isAdmin = computed(() => user.value?.email?.includes('kwancer') || false)
+const isAdmin = computed(() => {
+  if (!user.value) return false
+  const adminEmails = ['kwancer@gmail.com', 'krzysztofwancerski@gmail.com']
+  return adminEmails.includes(user.value.email || '')
+})
 
 const statusColor = computed(() => {
   if (!activeMeeting.value) return ''
