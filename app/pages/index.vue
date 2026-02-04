@@ -163,7 +163,7 @@ onMounted(async () => {
 
 const isAdmin = computed(() => {
   if (!user.value) return false
-  const adminEmails = ['kwancer@gmail.com', 'krzysztofwancerski@gmail.com']
+  const adminEmails = ['kwancer@gmail.com', 'krzysztofwancerski@gmail.com', 'josh.reynolds@yarn.health']
   return adminEmails.includes(user.value.email || '')
 })
 
