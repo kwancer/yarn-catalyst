@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const genAI = new GoogleGenerativeAI(apiKey)
+  const genAI = new GoogleGenerativeAI(apiKey as string)
   const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
   // Construct the prompt from team responses

@@ -134,17 +134,35 @@
   </div>
 </template>
 
-<script setup>
-const supabase = useSupabaseClient()
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from 'vue'
+
+interface Meeting {
+  id: string
+  title: string
+  status: 'brainstorming' | 'voting' | 'active' | 'finished'
+  created_at: string
+}
+
+interface AgendaItem {
+  id: string
+  theme: string
+  description: string
+  votes: number
+  action_points: string[]
+  is_completed: boolean
+}
+
+const supabase = useSupabaseClient<any>()
 const user = useSupabaseUser()
 
 // State
-const activeMeeting = ref(null)
-const agendaItems = ref([])
+const activeMeeting = ref<Meeting | null>(null)
+const agendaItems = ref<AgendaItem[]>([])
 const hasSubmitted = ref(false)
 const isSubmitting = ref(false)
 const isAnalyzing = ref(false)
-const userVotes = ref([]) // Track items this user voted for in local session
+const userVotes = ref<string[]>([]) // Track items this user voted for in local session
 
 const form = reactive({
   worrying: '',
@@ -198,8 +216,8 @@ const fetchActiveMeeting = async () => {
     const { data: resp } = await supabase
       .from('catalyst_responses')
       .select('id')
-      .eq('meeting_id', activeMeeting.value.id)
-      .eq('user_id', user.value.id)
+      .eq('meeting_id', activeMeeting.value!.id)
+    .eq('user_id', user.value!.id)
       .single()
     
     if (resp) hasSubmitted.value = true
@@ -221,7 +239,8 @@ const startMeeting = async () => {
     .from('catalyst_meetings')
     .insert({
       title: `Team Sync: ${new Date().toLocaleDateString('en-GB')}`,
-      created_by: user.value.id
+      created_by: user.value!.id,
+      status: 'brainstorming' // Explicit status since DB default might not be inferred
     })
     .select()
     .single()
@@ -236,8 +255,8 @@ const submitResponse = async () => {
   const { error } = await supabase
     .from('catalyst_responses')
     .insert({
-      meeting_id: activeMeeting.value.id,
-      user_id: user.value.id,
+      meeting_id: activeMeeting.value!.id,
+      user_id: user.value!.id,
       ...form
     })
   
@@ -259,15 +278,16 @@ const analyzeAndTransition = async () => {
   
   // 2. Call Gemini
   try {
-    const { agendaItems: extracted } = await $fetch('/api/catalyst/analyze', {
+    const response = await $fetch<{ agendaItems: any[] }>('/api/catalyst/analyze', {
       method: 'POST',
-      body: { meeting_id: activeMeeting.value.id, responses }
+      body: { meeting_id: activeMeeting.value!.id, responses }
     })
+    const extracted = response.agendaItems
     
     // 3. Save agenda items to Supabase
     const toInsert = extracted.map((item: any) => ({
       ...item,
-      meeting_id: activeMeeting.value.id
+      meeting_id: activeMeeting.value!.id
     }))
     
     await supabase.from('catalyst_agenda_items').insert(toInsert)
@@ -276,13 +296,13 @@ const analyzeAndTransition = async () => {
     await supabase
       .from('catalyst_meetings')
       .update({ status: 'voting' })
-      .eq('id', activeMeeting.value.id)
+      .eq('id', activeMeeting.value!.id)
       
-    activeMeeting.value.status = 'voting'
+    activeMeeting.value!.status = 'voting'
     await fetchAgendaItems()
   } catch (err) {
     console.error(err)
-    alert('AI distillation failed. Please ensure GEMINI_API_KEY is set.')
+    window.alert('AI distillation failed. Please ensure GEMINI_API_KEY is set.')
   } finally {
     isAnalyzing.value = false
   }
@@ -293,7 +313,7 @@ const castVote = async (item: any) => {
   
   const { error } = await supabase
     .from('catalyst_agenda_items')
-    .update({ votes: item.votes + 1 })
+    .update({ votes: (item.votes || 0) + 1 })
     .eq('id', item.id)
   
   if (!error) {
@@ -305,8 +325,8 @@ const finalizeAgenda = async () => {
   await supabase
     .from('catalyst_meetings')
     .update({ status: 'active' })
-    .eq('id', activeMeeting.value.id)
-  activeMeeting.value.status = 'active'
+    .eq('id', activeMeeting.value!.id)
+  activeMeeting.value!.status = 'active'
 }
 
 const toggleComplete = async (item: any) => {
@@ -320,7 +340,7 @@ const closeMeeting = async () => {
   await supabase
     .from('catalyst_meetings')
     .update({ status: 'finished' })
-    .eq('id', activeMeeting.value.id)
+    .eq('id', activeMeeting.value!.id)
   activeMeeting.value = null
   agendaItems.value = []
   hasSubmitted.value = false
@@ -330,12 +350,12 @@ const closeMeeting = async () => {
 const setupSubscriptions = () => {
   supabase
     .channel('catalyst-changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'catalyst_meetings' }, payload => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'catalyst_meetings' }, (payload: any) => {
       if (activeMeeting.value && payload.new.id === activeMeeting.value.id) {
         activeMeeting.value = payload.new as any
       }
     })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'catalyst_agenda_items' }, payload => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'catalyst_agenda_items' }, (payload: any) => {
        const index = agendaItems.value.findIndex(i => i.id === payload.new.id)
        if (index !== -1) {
          agendaItems.value[index] = payload.new as any
