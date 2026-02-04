@@ -1,75 +1,36 @@
-# Nuxt Minimal Starter
+# Yarn Meeting Catalyst 🚀
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+AI-driven team synchronization tool for the Yarn team. Convert meeting friction into focused, prioritized agendas using Nuxt 3, Supabase, and Gemini.
 
-## Setup
+## 🛠️ Setup Instructions
 
-Make sure to install dependencies:
+### 1. Database (Supabase)
+Run the SQL migration found in `supabase_setup.sql` in your existing Yarn Supabase SQL Editor. This will create:
+- `catalyst_meetings`
+- `catalyst_responses`
+- `catalyst_agenda_items`
 
+### 2. Environment Variables
+Add the following to your `.env` (local) and Netlify Dashboard:
+
+```env
+# Existing Yarn Keys
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-anon-key
+
+# AI Integration
+GEMINI_API_KEY=your-gemini-api-key
+```
+
+### 3. Development
 ```bash
-# npm
 npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
-```
-
-## Development Server
-
-Start the development server on `http://localhost:3000`:
-
-```bash
-# npm
 npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
 ```
 
-## Production
+### 4. Deployment
+Deploy to Netlify by linking this repository. Ensure the environment variables above are added to the Netlify site configuration.
 
-Build the application for production:
+---
 
-```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+Built by Kdog 👨‍💻✊
