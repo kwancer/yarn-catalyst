@@ -1,6 +1,9 @@
 -- SQL Migration for Yarn Meeting Catalyst
 -- Run this in your Supabase SQL Editor
 
+-- 0. Enable UUID Extension (required for uuid_generate_v4)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- 1. Create Meetings Table
 CREATE TABLE IF NOT EXISTS catalyst_meetings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

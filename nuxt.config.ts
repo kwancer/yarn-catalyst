@@ -10,6 +10,9 @@ export default defineNuxtConfig({
   ],
   supabase: {
     redirect: false
+  },
+  runtimeConfig: {
+    geminiApiKey: '' // Can be overridden by NUXT_GEMINI_API_KEY env var
   }
 })
 // Force restart

@@ -299,12 +299,14 @@ const analyzeAndTransition = async () => {
     const extracted = response.agendaItems
     
     // 3. Save agenda items to Supabase
-    const toInsert = extracted.map((item: any) => ({
-      ...item,
-      meeting_id: activeMeeting.value!.id
-    }))
-    
-    await supabase.from('catalyst_agenda_items').insert(toInsert)
+    if (extracted && extracted.length > 0) {
+      const toInsert = extracted.map((item: any) => ({
+        ...item,
+        meeting_id: activeMeeting.value!.id
+      }))
+      
+      await supabase.from('catalyst_agenda_items').insert(toInsert)
+    }
     
     // 4. Transition status
     await supabase
@@ -398,11 +400,16 @@ const setupSubscriptions = () => {
       }
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'catalyst_agenda_items' }, (payload: any) => {
-       if (!activeMeeting.value || payload.new.meeting_id !== activeMeeting.value.id) return
+       const item = payload.new || payload.old
+       if (!activeMeeting.value || item.meeting_id !== activeMeeting.value.id) return
        
-       const index = agendaItems.value.findIndex(i => i.id === payload.new.id)
+       const index = agendaItems.value.findIndex(i => i.id === item.id)
        if (index !== -1) {
-         agendaItems.value[index] = payload.new as any
+         if (payload.eventType === 'DELETE') {
+           agendaItems.value.splice(index, 1)
+         } else {
+           agendaItems.value[index] = payload.new as any
+         }
        } else if (payload.eventType === 'INSERT') {
          agendaItems.value.push(payload.new as any)
        }
