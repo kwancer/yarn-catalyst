@@ -316,9 +316,10 @@ const analyzeAndTransition = async () => {
       
     activeMeeting.value!.status = 'voting'
     await fetchAgendaItems()
-  } catch (err) {
-    console.error(err)
-    window.alert('AI distillation failed. Please ensure GEMINI_API_KEY is set.')
+  } catch (err: any) {
+    console.error('Catalyst Error:', err)
+    const msg = err?.data?.statusMessage || err?.message || 'Unknown error'
+    window.alert(`Catalyst distillation failed: ${msg}`)
   } finally {
     isAnalyzing.value = false
   }

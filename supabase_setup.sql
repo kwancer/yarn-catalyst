@@ -55,4 +55,5 @@ CREATE POLICY "Allow authenticated users to read responses" ON catalyst_response
 CREATE POLICY "Allow users to insert their own responses" ON catalyst_responses FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Allow authenticated users to read agenda items" ON catalyst_agenda_items FOR SELECT USING (true);
+CREATE POLICY "Allow users to insert agenda items" ON catalyst_agenda_items FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 CREATE POLICY "Allow users to vote/update agenda items" ON catalyst_agenda_items FOR UPDATE USING (true);

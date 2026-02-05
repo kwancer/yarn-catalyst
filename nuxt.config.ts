@@ -9,9 +9,17 @@ export default defineNuxtConfig({
     '@nuxtjs/supabase'
   ],
   supabase: {
-    redirect: false
+    redirect: false,
+    url: process.env.SUPABASE_URL,
+    key: process.env.SUPABASE_KEY
   },
   runtimeConfig: {
+    public: {
+      supabase: {
+        url: process.env.SUPABASE_URL,
+        key: process.env.SUPABASE_KEY
+      }
+    },
     geminiApiKey: '' // Can be overridden by NUXT_GEMINI_API_KEY env var
   }
 })
