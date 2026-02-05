@@ -6,7 +6,7 @@ AI-driven team synchronization tool for the Yarn team. Convert meeting friction 
 
 ### 1. Database (Supabase)
 Run the SQL migration found in `supabase_setup.sql` in your existing Yarn Supabase SQL Editor. This will create:
-- `catalyst_meetings`
+- `catalyst_meetings` (includes `meeting_summary` column)
 - `catalyst_responses`
 - `catalyst_agenda_items`
 

@@ -86,7 +86,13 @@
 
       <!-- Phase 3: Active Agenda -->
       <section v-if="activeMeeting.status === 'active'" class="space-y-4">
-        <div class="bg-green-600 p-4 rounded-xl shadow-inner mb-6">
+        <div v-if="activeMeeting.meeting_summary" class="bg-indigo-600 p-6 rounded-xl shadow-lg border border-indigo-500 mb-8 transform -rotate-1">
+          <h3 class="text-white/80 uppercase text-[10px] font-black tracking-widest mb-1">Today's Focus</h3>
+          <p class="text-white text-lg font-medium italic leading-relaxed">
+            "{{ activeMeeting.meeting_summary }}"
+          </p>
+        </div>
+        <div v-else class="bg-green-600 p-4 rounded-xl shadow-inner mb-6">
           <p class="text-white text-sm font-bold text-center">Focus Mode Engaged</p>
         </div>
         <div class="grid gap-4">
@@ -135,13 +141,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 interface Meeting {
   id: string
   title: string
   status: 'brainstorming' | 'voting' | 'active' | 'finished'
   created_at: string
+  meeting_summary?: string
 }
 
 interface AgendaItem {
@@ -168,6 +175,13 @@ const form = reactive({
   worrying: '',
   going_well: '',
   could_do_better: ''
+})
+
+// Fix for voting UI not appearing: Watch status and fetch items
+watch(() => activeMeeting.value?.status, async (newStatus) => {
+  if (newStatus === 'voting' || newStatus === 'active') {
+    await fetchAgendaItems()
+  }
 })
 
 // Auth Guard
@@ -322,11 +336,34 @@ const castVote = async (item: any) => {
 }
 
 const finalizeAgenda = async () => {
-  await supabase
-    .from('catalyst_meetings')
-    .update({ status: 'active' })
-    .eq('id', activeMeeting.value!.id)
-  activeMeeting.value!.status = 'active'
+  if (!activeMeeting.value) return
+  
+  // Generate summary
+  try {
+    const { summary } = await $fetch<{ summary: string }>('/api/catalyst/summarize', {
+      method: 'POST',
+      body: { agendaItems: sortedAgenda.value }
+    })
+    
+    await supabase
+      .from('catalyst_meetings')
+      .update({ 
+        status: 'active',
+        meeting_summary: summary
+      })
+      .eq('id', activeMeeting.value!.id)
+    
+    activeMeeting.value!.status = 'active'
+    activeMeeting.value!.meeting_summary = summary
+  } catch (err) {
+    console.error('Summarization failed:', err)
+    // Fallback to transition without summary
+    await supabase
+      .from('catalyst_meetings')
+      .update({ status: 'active' })
+      .eq('id', activeMeeting.value!.id)
+    activeMeeting.value!.status = 'active'
+  }
 }
 
 const toggleComplete = async (item: any) => {
@@ -351,15 +388,22 @@ const setupSubscriptions = () => {
   supabase
     .channel('catalyst-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'catalyst_meetings' }, (payload: any) => {
-      if (activeMeeting.value && payload.new.id === activeMeeting.value.id) {
-        activeMeeting.value = payload.new as any
+      if (activeMeeting.value && (payload.new?.id === activeMeeting.value.id || payload.old?.id === activeMeeting.value.id)) {
+        if (payload.eventType === 'DELETE') {
+          activeMeeting.value = null
+          agendaItems.value = []
+        } else {
+          activeMeeting.value = { ...activeMeeting.value, ...payload.new }
+        }
       }
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'catalyst_agenda_items' }, (payload: any) => {
+       if (!activeMeeting.value || payload.new.meeting_id !== activeMeeting.value.id) return
+       
        const index = agendaItems.value.findIndex(i => i.id === payload.new.id)
        if (index !== -1) {
          agendaItems.value[index] = payload.new as any
-       } else {
+       } else if (payload.eventType === 'INSERT') {
          agendaItems.value.push(payload.new as any)
        }
     })

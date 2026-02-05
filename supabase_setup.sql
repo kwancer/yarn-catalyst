@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS catalyst_meetings (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     title TEXT NOT NULL,
     status TEXT DEFAULT 'brainstorming' CHECK (status IN ('brainstorming', 'voting', 'active', 'finished')),
-    created_by UUID REFERENCES auth.users(id)
+    created_by UUID REFERENCES auth.users(id),
+    meeting_summary TEXT
 );
 
 -- 2. Create Responses Table
