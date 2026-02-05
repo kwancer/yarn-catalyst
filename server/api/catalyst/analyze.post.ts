@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const genAI = new GoogleGenerativeAI(apiKey as string)
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
   // Construct the prompt from team responses
   const formattedResponses = responses.map((r: any) => 
