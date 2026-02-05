@@ -33,11 +33,34 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           Step 1: Individual Reflection
         </h3>
+        
+        <!-- Readiness Indicators -->
+        <div class="flex flex-wrap gap-2 mb-6">
+          <div v-for="resp in teamResponses" :key="resp.user_id" class="flex items-center gap-1.5 px-2 py-1 rounded-full bg-slate-50 border border-slate-100">
+            <div class="w-2 h-2 rounded-full" :class="resp.is_ready ? 'bg-green-500 animate-pulse' : 'bg-slate-300'"></div>
+            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">{{ resp.user_id.slice(0, 5) }}</span>
+          </div>
+        </div>
+
         <div class="space-y-4">
           <div v-if="hasSubmitted">
-            <div class="bg-green-50 border border-green-100 p-4 rounded-lg flex items-center gap-3">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              <p class="text-sm text-green-700 font-medium">Your thoughts are in. Waiting for the rest of the team to finish.</p>
+            <div class="bg-green-50 border border-green-100 p-6 rounded-lg text-center space-y-4">
+              <div class="flex justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <p class="text-sm text-green-700 font-medium">Your thoughts are in!</p>
+              
+              <button 
+                @click="toggleReady" 
+                class="w-full py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-sm active:scale-95"
+                :class="form.is_ready ? 'bg-green-600 text-white shadow-green-200' : 'bg-white border-2 border-green-600 text-green-600'"
+              >
+                {{ form.is_ready ? 'I am Ready 🚀' : 'Click when Ready for Voting' }}
+              </button>
+              
+              <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest pt-2">
+                {{ readyCount }} / {{ teamResponses.length }} team members ready
+              </p>
             </div>
           </div>
           <div v-else class="space-y-4">
@@ -62,8 +85,12 @@
 
       <!-- Phase 2: Voting -->
       <section v-if="activeMeeting.status === 'voting'" class="space-y-4">
-        <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-lg">
-          <p class="text-sm text-indigo-700 font-medium italic">Gemini has synthesized team input into these core themes. Vote on what we tackle today.</p>
+        <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-lg flex items-center justify-between">
+          <p class="text-sm text-indigo-700 font-medium italic max-w-[70%]">Gemini has synthesized team input into these core themes. Vote on what we tackle today.</p>
+          <div class="text-right">
+            <span class="block text-[10px] font-black uppercase text-indigo-400 tracking-widest">Votes Left</span>
+            <span class="text-2xl font-black text-indigo-600">{{ MAX_VOTES - userVotes.length }}</span>
+          </div>
         </div>
         <div class="grid gap-4">
           <div v-for="item in agendaItems" :key="item.id" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-start gap-4 hover:border-indigo-200 transition-colors">
@@ -76,7 +103,11 @@
                 </span>
               </div>
             </div>
-            <button @click="castVote(item)" class="flex flex-col items-center justify-center w-12 h-14 rounded-xl border-2 transition-all" :class="userVotes.includes(item.id) ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-100 text-slate-300 hover:border-indigo-100 hover:text-indigo-400'">
+            <button 
+              @click="castVote(item)" 
+              class="flex flex-col items-center justify-center w-12 h-14 rounded-xl border-2 transition-all active:scale-90" 
+              :class="userVotes.includes(item.id) ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-slate-100 text-slate-300 hover:border-indigo-100 hover:text-indigo-400'"
+            >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
               <span class="text-sm font-black">{{ item.votes }}</span>
             </button>
@@ -163,24 +194,30 @@ interface AgendaItem {
 const supabase = useSupabaseClient<any>()
 const user = useSupabaseUser()
 
+// Constants
+const MAX_VOTES = 3
+
 // State
 const activeMeeting = ref<Meeting | null>(null)
 const agendaItems = ref<AgendaItem[]>([])
+const teamResponses = ref<any[]>([])
 const hasSubmitted = ref(false)
 const isSubmitting = ref(false)
 const isAnalyzing = ref(false)
-const userVotes = ref<string[]>([]) // Track items this user voted for in local session
+const userVotes = ref<string[]>([]) // IDs of agenda items this user voted for
 
 const form = reactive({
   worrying: '',
   going_well: '',
-  could_do_better: ''
+  could_do_better: '',
+  is_ready: false
 })
 
 // Fix for voting UI not appearing: Watch status and fetch items
 watch(() => activeMeeting.value?.status, async (newStatus) => {
   if (newStatus === 'voting' || newStatus === 'active') {
     await fetchAgendaItems()
+    await fetchUserVotes()
   }
 })
 
@@ -213,6 +250,10 @@ const sortedAgenda = computed(() => {
   return [...agendaItems.value].sort((a, b) => b.votes - a.votes)
 })
 
+const readyCount = computed(() => {
+  return teamResponses.value.filter(r => r.is_ready).length
+})
+
 // Logic
 const fetchActiveMeeting = async () => {
   const { data: meetings } = await supabase
@@ -225,16 +266,15 @@ const fetchActiveMeeting = async () => {
   if (meetings?.length) {
     activeMeeting.value = meetings[0]
     await fetchAgendaItems()
+    await fetchTeamResponses()
+    await fetchUserVotes()
     
     // Check if user already submitted for this meeting
-    const { data: resp } = await supabase
-      .from('catalyst_responses')
-      .select('id')
-      .eq('meeting_id', activeMeeting.value!.id)
-    .eq('user_id', user.value!.id)
-      .single()
-    
-    if (resp) hasSubmitted.value = true
+    const resp = teamResponses.value.find(r => r.user_id === user.value!.id)
+    if (resp) {
+      hasSubmitted.value = true
+      form.is_ready = resp.is_ready
+    }
   }
 }
 
@@ -246,6 +286,27 @@ const fetchAgendaItems = async () => {
     .eq('meeting_id', activeMeeting.value.id)
   
   agendaItems.value = data || []
+}
+
+const fetchTeamResponses = async () => {
+  if (!activeMeeting.value) return
+  const { data } = await supabase
+    .from('catalyst_responses')
+    .select('user_id, is_ready')
+    .eq('meeting_id', activeMeeting.value.id)
+  
+  teamResponses.value = data || []
+}
+
+const fetchUserVotes = async () => {
+  if (!activeMeeting.value || !user.value) return
+  const { data } = await supabase
+    .from('catalyst_votes')
+    .select('agenda_item_id')
+    .eq('meeting_id', activeMeeting.value.id)
+    .eq('user_id', user.value.id)
+  
+  userVotes.value = (data || []).map(v => v.agenda_item_id)
 }
 
 const startMeeting = async () => {
@@ -266,18 +327,39 @@ const submitResponse = async () => {
   if (!activeMeeting.value) return
   isSubmitting.value = true
   
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('catalyst_responses')
     .insert({
       meeting_id: activeMeeting.value!.id,
       user_id: user.value!.id,
-      ...form
+      worrying: form.worrying,
+      going_well: form.going_well,
+      could_do_better: form.could_do_better,
+      is_ready: false
     })
+    .select()
   
   if (!error) {
     hasSubmitted.value = true
+    await fetchTeamResponses()
   }
   isSubmitting.value = false
+}
+
+const toggleReady = async () => {
+  if (!activeMeeting.value || !user.value) return
+  
+  const newReadyState = !form.is_ready
+  const { error } = await supabase
+    .from('catalyst_responses')
+    .update({ is_ready: newReadyState })
+    .eq('meeting_id', activeMeeting.value.id)
+    .eq('user_id', user.value.id)
+  
+  if (!error) {
+    form.is_ready = newReadyState
+    await fetchTeamResponses()
+  }
 }
 
 const analyzeAndTransition = async () => {
@@ -326,15 +408,38 @@ const analyzeAndTransition = async () => {
 }
 
 const castVote = async (item: any) => {
-  if (userVotes.value.includes(item.id)) return // Basic 1-vote limit
-  
-  const { error } = await supabase
-    .from('catalyst_agenda_items')
-    .update({ votes: (item.votes || 0) + 1 })
-    .eq('id', item.id)
-  
-  if (!error) {
-    userVotes.value.push(item.id)
+  if (!activeMeeting.value || !user.value) return
+
+  if (userVotes.value.includes(item.id)) {
+    // Unvote
+    const { error } = await supabase
+      .from('catalyst_votes')
+      .delete()
+      .eq('agenda_item_id', item.id)
+      .eq('user_id', user.value.id)
+    
+    if (!error) {
+      userVotes.value = userVotes.value.filter(id => id !== item.id)
+      // item.votes will be updated via realtime/trigger
+    }
+  } else {
+    // Vote (check limit)
+    if (userVotes.value.length >= MAX_VOTES) {
+      window.alert(`You can only cast up to ${MAX_VOTES} votes! Change your mind by clicking a selected item to unvote.`)
+      return
+    }
+
+    const { error } = await supabase
+      .from('catalyst_votes')
+      .insert({
+        meeting_id: activeMeeting.value.id,
+        agenda_item_id: item.id,
+        user_id: user.value.id
+      })
+    
+    if (!error) {
+      userVotes.value.push(item.id)
+    }
   }
 }
 
@@ -384,6 +489,7 @@ const closeMeeting = async () => {
   activeMeeting.value = null
   agendaItems.value = []
   hasSubmitted.value = false
+  userVotes.value = []
 }
 
 // Realtime
@@ -409,11 +515,32 @@ const setupSubscriptions = () => {
          if (payload.eventType === 'DELETE') {
            agendaItems.value.splice(index, 1)
          } else {
-           agendaItems.value[index] = payload.new as any
+           agendaItems.value[index] = { ...agendaItems.value[index], ...payload.new }
          }
        } else if (payload.eventType === 'INSERT') {
          agendaItems.value.push(payload.new as any)
        }
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'catalyst_responses' }, (payload: any) => {
+      const resp = payload.new || payload.old
+      if (!activeMeeting.value || resp.meeting_id !== activeMeeting.value.id) return
+      
+      const index = teamResponses.value.findIndex(r => r.user_id === resp.user_id)
+      if (index !== -1) {
+        if (payload.eventType === 'DELETE') {
+          teamResponses.value.splice(index, 1)
+        } else {
+          teamResponses.value[index] = { ...teamResponses.value[index], ...resp }
+        }
+      } else if (payload.eventType === 'INSERT') {
+        teamResponses.value.push(resp)
+      }
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'catalyst_votes' }, async (payload: any) => {
+      const vote = payload.new || payload.old
+      if (!activeMeeting.value || vote.meeting_id !== activeMeeting.value.id || vote.user_id !== user.value?.id) return
+      
+      await fetchUserVotes()
     })
     .subscribe()
 }
