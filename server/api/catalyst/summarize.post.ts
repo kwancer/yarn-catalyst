@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const apiKey = process.env.GEMINI_API_KEY || config.geminiApiKey
+  const apiKey = process.env.NUXT_GEMINI_API_KEY || process.env.GEMINI_API_KEY || config.geminiApiKey
   if (!apiKey) {
     throw createError({
       statusCode: 500,
@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const genAI = new GoogleGenerativeAI(apiKey as string)
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
 
   const itemsString = agendaItems.map((i: any) => 
     `- ${i.theme} (${i.votes} votes): ${i.description}`
