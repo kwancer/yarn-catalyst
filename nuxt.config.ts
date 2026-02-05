@@ -2,6 +2,7 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   srcDir: 'app/',
+  serverDir: 'server',
   devtools: { enabled: true },
   modules: [
     '@nuxtjs/tailwindcss',
@@ -11,3 +12,5 @@ export default defineNuxtConfig({
     redirect: false
   }
 })
+// Force restart
+
