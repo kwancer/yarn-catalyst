@@ -12,11 +12,11 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const apiKey = process.env.GEMINI_API_KEY || config.geminiApiKey
+  const apiKey = process.env.NUXT_GEMINI_API_KEY || process.env.GEMINI_API_KEY || config.geminiApiKey
   if (!apiKey) {
     throw createError({
       statusCode: 500,
-      statusMessage: 'Gemini API Key missing',
+      statusMessage: 'Gemini API Key missing (Checked NUXT_GEMINI_API_KEY and GEMINI_API_KEY)',
     })
   }
 
